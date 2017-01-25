@@ -7,7 +7,7 @@
 // This application uses express as its web server
 // for more info, see: http://expressjs.com
 var express = require('express');
-var iot = require("iotf");
+//var iot = require("iotf");
 
 var GameFile = require("./objects/gameFile");
 var game = require("./util/game");
@@ -45,7 +45,7 @@ app.get("/end", function(req, res) {
 
 })
 
-app.get("/login", login);
+//app.get("/login", login);
 
 // serve the files out of ./public as our main files
 app.use(express.static(__dirname + '/public'));
