@@ -4,6 +4,7 @@
 function Game () {
 	this.startGame= startGame;
 	this.endGame= endGame;
+	this.resetGame= resetGame;
 	this.goalTime= goalTime;
 	this.isOld= isOld;
 }
@@ -20,6 +21,37 @@ function endGame (gameFile) {
 
 	gameFile.end = getTime();
 	gameFile.gameActive = false;
+}
+
+//Function that resets the game if one is currently active
+function resetGame(gameFile) {
+
+	if (gameFile.gameActive) {
+
+		endGame(gameFile);
+		startGame(gameFile);
+
+	} else {
+
+		console.log("No game is active right now.");
+
+	}
+}
+
+//Handle goal events for Team 1
+function goalTeam1(gameFile) {
+
+	gameFile.goalsTeam1++;
+	goalTime(gameFile);
+
+}
+
+//Handle goal events for Team 2
+function goalTeam2(gameFile) {
+
+	gameFile.goalsTeam2++;
+	goalTime(gameFile);
+
 }
 
 //Sets the time at which the last goal was scored

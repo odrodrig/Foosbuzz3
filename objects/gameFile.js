@@ -8,9 +8,9 @@ function GameFile () {
 	this.end = "";
 	this.gameActive = "";
 	this.lastBall = "";
-	this.currentBall = "";
-	this.goalsTeam1 = "";
-	this.goalsTeam2 = "";
+	// this.currentBall = "";
+	this.goalsTeam1 = 0;
+	this.goalsTeam2 = 0;
 	this.userTeam1 = "";
 	this.userTeam2 = "";
 	this.IDTeam1 = "";

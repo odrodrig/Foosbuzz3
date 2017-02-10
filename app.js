@@ -33,61 +33,75 @@ var appEnv = cfenv.getAppEnv();
 
 //Credentials from Watson IoT Platform
 var appClientConfig = {
-    "org" : "5knvov",
-    "id" : "foosbuzz3",
-    "domain": "internetofthings.ibmcloud.com",
-    "auth-key" : "a-5knvov-lsruwlqlx0",
-    "auth-token" : "G?_Zg14oNDD5DnUVyk"
+	"org" : "5knvov",
+	"id" : "foosbuzz3",
+	"domain": "internetofthings.ibmcloud.com",
+	"auth-key" : "a-5knvov-lsruwlqlx0",
+	"auth-token" : "G?_Zg14oNDD5DnUVyk"
 }
 
 var appClient = new client.IotfApplication(appClientConfig);
-appClient.log.setLevel('trace');
+// appClient.log.setLevel('trace');
 appClient.connect();
 
 //Handles when the application connects to the platform
 appClient.on("connect", function() {
 	console.log("Client connected!");
 
-	appClient.subscribeToDeviceEvents("table","foosbuzz","message");
-
-	appClient.on("message", function() {
-
-		console.log("Data recevied!");
-		//console.log(payload);
-
-	})
-
-
 	//Subscribe to all events from the table
-	//appClient.subscribeToDeviceEvents();
+	appClient.subscribeToDeviceEvents();
 })
 
-// appClient.on("message", function() {
+appClient.on("deviceEvent", function (deviceType, deviceId, eventType, format, payload) {
 
-// 	console.log("Data recevied!");
-// 	//console.log(payload);
+	console.log("payload = "+payload);
 
-// })
+	//Determine how to handle game event based on what the incomming sensor payload is
+	switch(payload) {
+
+		//Game Reset
+	  	case 0: {
+
+			if (!gf) {
+				var gf  = new GameFile;
+			}
+
+			game.resetGame(gf);
+
+			break;
+
+		}
+
+		//Goal Team 1
+		case 1: {
+
+			if (!gf) {
+				var gf  = new GameFile;
+			}
+			
+			game.goalTeam1(gf);
+
+		}
+
+		//Goal Team 2
+		case 2: {
+
+			if (!gf) {
+				var gf  = new GameFile;
+			}
+
+			game.goalTeam2(gf);
+
+		}
+
+	}
+
+});
 
 //Outputs error events
 appClient.on("error", function(error) {
 	console.log("Error: " + error);
 })
-
-
-//***************** Test Data. Please ignore ***************************
-var gf1 = new GameFile;
-var gf2 = new GameFile;
-game.startGame(gf1);
-game.goalTime(gf1);
-
-gf1.userTeam1 = "john";
-gf2.userTeam1 = "jane";
-
-// var gf1 = new GameFile(1, 1, 1, false, 1, 1, 1, 1, "john", "doe", "twitter1", "Twitter2");
-// var gf2 = new GameFile(2, 2, 2, true, 2, 2, 2, 2, "jane", "moe", "twitter3", "Twitter4");
-
-//***************** Test Data. Please ignore ***************************
 
 //------------------------------------------------------------------------------
 //3. Endpoints                                                      ---------------
@@ -102,16 +116,45 @@ app.get("/test", function(req, res) {
 
 app.get("/end", function(req, res) {
 
-	game.endGame(gf1);
-	res.send(gf1);
+	game.endGame(gf);
+	res.send(gf);
 
 })
 
-//app.get("/login", login);
+app.get("/start", function(req, res) {
+
+	if (!gf) {
+		var gf = new GameFile;
+	}
+
+	game.startGame(gf);
+
+})
+
+app.get("/playerOne", function(req, res) {
+
+	if(!gf) {
+		var gf  = new GameFile;
+	}
+
+	//gf.userTeam1 = req.query.name;
+
+})
+
+app.get("/playerTwo", function(req, res) {
+
+	if (!gf) {
+		var gf = new GameFile;
+	}
+
+	//gf.userTeam2 = req.query.name;
+
+})
 
 //------------------------------------------------------------------------------
 //4. Function Declarations                                          ---------------
 //------------------------------------------------------------------------------
+
 
 //------------------------------------------------------------------------------
 //5. Starting Express Server                                        ---------------
