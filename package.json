@@ -8,10 +8,11 @@
 	"dependencies": {
 		"express": "4.13.x",
 		"cfenv": "1.0.x",
-		"ibmiotf": "0.2.29"
+		"ibmiotf": "0.2.29",
+		"socket.io": "1.7.3"
 	},
 	"repository": {},
 	"engines": {
 		"node": "4.x"
-	} 
+	}
 }

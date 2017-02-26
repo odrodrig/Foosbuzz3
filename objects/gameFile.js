@@ -6,13 +6,13 @@ function GameFile () {
 	this.gameID = "";
 	this.start = "";
 	this.end = "";
-	this.gameActive = "";
+	this.gameActive = false;
 	this.lastBall = "";
 	// this.currentBall = "";
 	this.goalsTeam1 = 0;
 	this.goalsTeam2 = 0;
-	this.userTeam1 = "";
-	this.userTeam2 = "";
+	this.userTeam1 = "Player 1";
+	this.userTeam2 = "Player 2";
 	this.IDTeam1 = "";
 	this.IDTeam2 = "";
 }
