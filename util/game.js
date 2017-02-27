@@ -1,7 +1,10 @@
+//game.js
+//Author: Oliver Rodriguez
 //These functions are used to interact with the GameFile
 
 //constructor
 function Game () {
+	this.loggedIn= loggedIn;
 	this.startGame= startGame;
 	this.endGame= endGame;
 	this.resetGame= resetGame;
@@ -10,6 +13,11 @@ function Game () {
 	this.goalTime= goalTime;
 	this.clearGameFile= clearGameFile;
 	this.isOld= isOld;
+}
+
+var loggedIn = {
+	player1: false,
+	player2: false
 }
 
 //Function that starts the game. Sets start time and gameActive to true
@@ -36,6 +44,8 @@ function endGame (gameFile) {
 
 		gameFile.end = getTime();
 		gameFile.gameActive = false;
+		loggedIn.player1 = false;
+		loggedIn.player2 = false;
 		console.log("Game Ended");
 		console.log(gameFile);
 

@@ -35,11 +35,6 @@ var gf = new GameFile;
 var player1 = new User;
 var player2 = new User;
 
-var loggedIn = {
-	player1: false,
-	player2: false
-}
-
 //------------------------------------------------------------------------------
 //2. Watson IoT Connections                                         ---------------
 //------------------------------------------------------------------------------
@@ -138,27 +133,44 @@ appClient.on("error", function(error) {
 //3. Endpoints                                                      ---------------
 //------------------------------------------------------------------------------
 
-app.get("/test", function(req, res) {
-
-	res.send("testing");
-})
-
 app.get("/end", function(req, res) {
 
-	game.endGame(gf);
-	res.send(gf);
+	if(isValid(gf)) {
 
-})
+		game.endGame(gf);
+		res.send(true);
 
-app.get("/start", function(req, res) {
+	} else {
 
-	if (!gf) {
-		var gf = new GameFile;
+		console.log("Error ending game.");
+		res.send({error: "Error ending game"});
+
 	}
 
-	game.startGame(gf);
+})
+
+//Starts the game
+app.get("/start", function(req, res) {
+
+	if (isValid(gf)) {
+
+		game.startGame(gf);
+		res.send(true);
+
+	} else {
+		console.log("Error starting game.");
+		res.send({error: "Error starting game."});
+	}
 
 })
+
+//Retrieves leaderboard
+app.get("/getLeague", function(req, res) {
+
+	//get users from db
+
+
+})/
 
 /*
 * @QueryParam {string} name - The name of the player. Taken from Twitter
@@ -166,11 +178,11 @@ app.get("/start", function(req, res) {
 */
 app.get("/login", function(req, res) {
 
-	if(loggedIn.player1) {
+	if(game.loggedIn.player1) {
 		res.send({error: "player1 logged in"});
 	}
 
-	if(loggedIn.player2) {
+	if(game.loggedIn.player2) {
 		res.send({error: "player2 logged in"});
 	}
 
@@ -183,12 +195,14 @@ app.get("/login", function(req, res) {
 
 			player1.name = reqName;
 			game.setUser(gf, reqName, 1)
+			game.loggedIn.player1 = true;
 			res.send(player1);
 
 		} else if (reqTeam == 2) {
 
 			player2.name = reqName;
 			game.setUser(gf, reqName, 2);
+			game.loggedIn.player2 = true;
 			res.send(player2);
 
 		} else {
@@ -199,8 +213,8 @@ app.get("/login", function(req, res) {
 
 });
 
+//Sends gameFile to the front-end
 app.get("/getGameFile", function(req, res) {
-//Sends gameFile to the front endGame
 
 		res.send(gf);
 });
