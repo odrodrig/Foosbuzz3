@@ -9,7 +9,7 @@ function Game () {
 	this.endGame= endGame;
 	this.resetGame= resetGame;
 	this.goal= goal;
-	this.setUser= setUser;
+	//this.setUser= setUser;
 	this.goalTime= goalTime;
 	this.clearGameFile= clearGameFile;
 	this.isOld= isOld;
@@ -93,17 +93,17 @@ function goal(gameFile, userGoalFor, userGoalAgainst, team) {
 
 }
 
-//Set the users in the GameFile
-function setUser(gameFile, user, team) {
-
-	if (team == 1) {
-		gameFile.userTeam1 = user;
-	} else if (team == 2) {
-		gameFile.userTeam2 = user;
-	} else {
-		console.log("Invalid team selection");
-	}
-}
+// //Set the users in the GameFile
+// function setUser(gameFile, user, team) {
+// 
+// 	if (team == 1) {
+// 		gameFile.userTeam1 = user;
+// 	} else if (team == 2) {
+// 		gameFile.userTeam2 = user;
+// 	} else {
+// 		console.log("Invalid team selection");
+// 	}
+// }
 
 //Sets the time at which the last goal was scored
 function goalTime (gameFile) {
@@ -133,12 +133,16 @@ function isOld (gameFile) {
 
 	var lMins = Math.round(gameFile.lastBall / 60000);
 	var cMins = Math.round(getTime() / 60000);
+	var sMins = Math.round(getTime() / 60000);
 
-	if(cMins - lMins >= 20) {
-		return true;
-	}
-	else {
+	if(cMins - lMins <= 20 || cMins - sMins <= 20) {
+		console.log("Not old");
 		return false;
+
+	} else {
+
+		console.log("is old");
+		return true;
 	}
 }
 

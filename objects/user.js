@@ -1,7 +1,8 @@
 function User () {
+  this.id = "";
   this.name = "";
   this.handle = "";
-  this.photo = "";
+  this.photo = "/images/player.svg";
   this.wins = 0;
   this.losses = 0;
   this.goalsFor = 0;

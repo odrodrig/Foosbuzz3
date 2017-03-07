@@ -16,6 +16,8 @@ var server = require('http').Server(app);
 var io = require('socket.io')(server);
 var client = require("ibmiotf");
 var cfenv = require('cfenv');
+var passport = require('passport');
+var Strategy = require('passport-twitter').Strategy;
 
 var GameFile = require("./objects/gameFile");
 var User = require("./objects/user");
@@ -24,6 +26,7 @@ var login = require("./routes/login");
 
 // serve the files out of ./public as our main files
 app.use(express.static(__dirname + '/public'));
+app.use(require('express-session')({ secret: 'keyboard cat', resave: true, saveUninitialized: true }));
 
 // get the app environment from Cloud Foundry
 var appEnv = cfenv.getAppEnv();
@@ -34,6 +37,8 @@ var gf = new GameFile;
 //Instantiating both players
 var player1 = new User;
 var player2 = new User;
+
+var team = "";
 
 //------------------------------------------------------------------------------
 //2. Watson IoT Connections                                         ---------------
@@ -71,27 +76,27 @@ appClient.on("connect", function() {
 appClient.on("deviceEvent", function (deviceType, deviceId, eventType, format, payload) {
 
 	//Handle reset button
-	if(payload == 0) {
+	if(payload == 3) {
 
 		console.log("reset");
-		io.emit('reset', {});
+		io.emit('reset', {reset: true});
 		game.resetGame(gf);
+		logOutUsers();
 
 		//Handle goal for team 1
 	} else if(payload == 1) {
 
+
+
 		if(isValid(gf)) {
 
 			console.log("goal team 1");
-			io.emit('goal', {team: 1});
 			game.goal(gf, player1, player2, 1);
+			io.emit('goal', {team: 1, game: gf});
 
 			if (gf.goalsTeam1 >= 5) {
-				game.endGame(gf);
-				updatePlayerStats();
-				storeGame();
-				game.clearGameFile(gf);
-				console.log(gf);
+				io.emit("gameWon", {team: 1, game:gf});
+				endGame(gf);
 			}
 
 		} else {
@@ -104,15 +109,13 @@ appClient.on("deviceEvent", function (deviceType, deviceId, eventType, format, p
 		if(isValid(gf)) {
 
 			console.log("goal team 2");
-			io.emit('goal', {team: 2});
 			game.goal(gf, player2, player1, 2);
+			io.emit('goal', {team: 2, game: gf});
 
 			if (gf.goalsTeam2 >= 5) {
-				game.endGame(gf);
-				updatePlayerStats();
-				storeGame();
-				game.clearGameFile(gf);
-				console.log(gf);
+				io.emit("gameWon", {team: 2, game:gf});
+				endGame(gf);
+
 			}
 
 		} else {
@@ -129,6 +132,54 @@ appClient.on("error", function(error) {
 })
 
 
+// Update the credentials with the information from your Twitter app
+passport.use(new Strategy({
+    consumerKey: "RdB7v2jBMMeoPzUPoCjLzU3Es",
+    consumerSecret: "S3j34kIYNQZhRoFBWU4bnUr4HGaDO6880zHvJCK0sn4U8sjUzg",
+    callbackURL: "http://foosbuzz3.mybluemix.net/login/twitter/return"
+  },
+  function(token, tokenSecret, player, cb) {
+
+	// Grab the Twitter photo and strip out the minimizer
+    var photo = player.photos[0].value;
+    photo = photo.replace("_normal", "");
+
+  	// Let Node-RED know there has been a successful login and send the profile data for further processing
+  	var twitterData = {
+			id:player.id,
+			handle:player.username,
+			name:player.displayName,
+			photo:photo,
+			chosenTeam:team
+		};
+
+		console.log("twitterData is ");
+		console.log(twitterData);
+
+		twitterLogin(twitterData);
+
+
+		// client.post("http://yourwebsite.com/player", args, function (data, response) {
+		// 	//console.log(data);
+		// 	//console.log(response);
+		// });
+
+    return cb(null, player);
+}));
+
+// Configure Passport authenticated session persistence.
+passport.serializeUser(function(user, cb) {
+  cb(null, user);
+});
+
+passport.deserializeUser(function(obj, cb) {
+  cb(null, obj);
+});
+
+// Initialize Passport and restore authentication state, if any, from the session.
+app.use(passport.initialize());
+app.use(passport.session());
+
 //------------------------------------------------------------------------------
 //3. Endpoints                                                      ---------------
 //------------------------------------------------------------------------------
@@ -137,7 +188,9 @@ app.get("/end", function(req, res) {
 
 	if(isValid(gf)) {
 
-		game.endGame(gf);
+		endGame(gf);
+		logOutUsers();
+
 		res.send(true);
 
 	} else {
@@ -170,58 +223,132 @@ app.get("/getLeague", function(req, res) {
 	//get users from db
 
 
-})/
+})
 
-/*
-* @QueryParam {string} name - The name of the player. Taken from Twitter
-* @QueryParam {int} team - The team number of whoever is logging in. Only the numbers 1 and 2 are supported
-*/
-app.get("/login", function(req, res) {
+app.get("/rematch", function(req, res) {
 
-	if(game.loggedIn.player1) {
-		res.send({error: "player1 logged in"});
-	}
+	var oldTeam1 = gf.userTeam1;
+	var oldTeam2 = gf.userTeam2;
 
-	if(game.loggedIn.player2) {
-		res.send({error: "player2 logged in"});
-	}
+	var oldPlayer1 = player1;
+	var oldPlayer2 = player2;
 
-	if(isValid(gf)) {
+	game.resetGame(gf);
 
-		var reqTeam = req.query.team;
-		var reqName = req.query.name;
+	gf.userTeam1 = oldTeam1;
+	gf.userTeam2 = oldTeam2;
 
-		if (reqTeam == 1) {
+	game.loggedIn.player1 = true;
+	game.loggedIn.player2 = true;
 
-			player1.name = reqName;
-			game.setUser(gf, reqName, 1)
-			game.loggedIn.player1 = true;
-			res.send(player1);
+	io.emit("reset");
 
-		} else if (reqTeam == 2) {
-
-			player2.name = reqName;
-			game.setUser(gf, reqName, 2);
-			game.loggedIn.player2 = true;
-			res.send(player2);
-
-		} else {
-			res.send({error: "Invalid team selection"});
-		}
-
-	}
+	res.send(gf);
 
 });
 
-//Sends gameFile to the front-end
-app.get("/getGameFile", function(req, res) {
 
-		res.send(gf);
+
+//Sends gameFile to the front-end
+app.get("/currentGame", function(req, res) {
+
+		res.send({
+			game: gf,
+			players: {
+				 player1: player1,
+			 	 player2: player2
+			}
+		});
+});
+
+// Manually handling login for each side with a login1 and login2
+app.get('/login1', function(req, res) {
+	team = 1;
+	res.redirect('/login/twitter');
+});
+
+app.get('/login2',function(req, res) {
+	team = 2;
+	res.redirect('/login/twitter');
+});
+
+app.get('/login/twitter',passport.authenticate('twitter', { forceLogin: true }));
+
+app.get('/login/twitter/return',
+  passport.authenticate('twitter', { failureRedirect: '/', successRedirect: '/' }),
+  function(req, res) {
+		console.log("in the Twitter callback");
+  req.logout();
+  //res.redirect('/');
 });
 
 //------------------------------------------------------------------------------
 //4. Function Declarations                                          ---------------
 //------------------------------------------------------------------------------
+
+//Handles log in data from Twitter
+function twitterLogin(data) {
+
+	// if(game.loggedIn.player1) {
+	// 	res.send({error: "player1 logged in"});
+	// }
+	//
+	// if(game.loggedIn.player2) {
+	// 	res.send({error: "player2 logged in"});
+	// }
+
+	if(isValid(gf)) {
+
+		var loginId = data.id;
+		var loginName = data.name;
+		var loginTeam = data.chosenTeam;
+		var loginHandle = data.handle;
+		var loginPhoto = data.photo;
+
+		console.log("this is loginTeam "+loginTeam);
+
+		if (loginTeam == 1) {
+
+			player1.id = loginId;
+			player1.name = loginName;
+			player1.handle = loginHandle;
+			player1.photo = loginPhoto;
+
+			gf.userTeam1 = loginName;
+			gf.IDTeam1 = loginHandle;
+
+			console.log("begin player 1");
+			console.log(player1);
+			console.log("end player 1");
+
+			//game.setUser(gf, loginName, 1)
+			game.loggedIn.player1 = true;
+			//console.log(player1);
+			io.emit("login", {player: player1, team: 1});
+
+		}
+
+		if (loginTeam == 2) {
+
+			player2.id = loginId;
+			player2.name = loginName;
+			player2.handle = loginHandle;
+			player2.photo = loginPhoto;
+
+			gf.userTeam2 = loginName;
+			gf.IDTeam2 = loginHandle;
+
+			//game.setUser(gf, loginName, 2);
+			game.loggedIn.player2 = true;
+			console.log("player 2");
+			console.log(player2);
+			io.emit("login", {player: player2, team: 2});
+
+		}
+
+	}
+
+};
 
 //Check whether the gamefile is valid
 function isValid(gf) {
@@ -230,14 +357,17 @@ function isValid(gf) {
 
 		return true;
 
-	} else if (game.isOld(gf)) {
-
-		game.resetGame(gf);
-		return true;
-
 	} else if (gf.gameActive == false) {
 
 		game.startGame(gf);
+		io.emit("gameStart");
+		return true;
+
+	} else if (game.isOld(gf)) {
+
+		logOutUsers();
+		game.resetGame(gf);
+		io.emit("gameStart");
 		return true;
 
 	}
@@ -245,6 +375,14 @@ function isValid(gf) {
 	return false;
 
 
+}
+
+function endGame(gf) {
+	game.endGame(gf);
+	updatePlayerStats();
+	storeGame();
+	game.clearGameFile(gf);
+	console.log(gf);
 }
 
 //Stores game file in Cloudant
@@ -262,6 +400,14 @@ function updatePlayerStats() {
 //Gets the last game ID in Cloudant
 function getLastGameID() {
 
+}
+
+function logOutUsers() {
+	player1 = new User();
+	player2 = new User();
+
+	console.log(player1);
+	console.log(player2);
 }
 
 
