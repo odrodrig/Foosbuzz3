@@ -83,45 +83,45 @@ $(document).ready(function() {
      *
      */
 
-  // //League data from server
-	// var table = $('#leaguetable').DataTable({
-	// 	"processing": true,
-	// 	"ajax": "league",
-	// 	"iDisplayLength": 100,
-	// 	"order": [[ 8, 'desc' ],[7, 'desc' ] ], //sort by points, then GD
-	// 	"aoColumnDefs": [
-	// 		{ "sClass": "photo-column", "aTargets": [ 0 ] },
-	// 		{ "sClass": "user-column", "aTargets": [ 1 ] },
-	// 		{ "sClass": "company-column", "aTargets": [ 2 ] }
-	// 	],
-	//     "bLengthChange": false,
-	// 	"columns": [
-	// 		{ data: 'photo' },
-	// 		{ data: 'username' },
-	// 		{ data: 'handle' },
-	// 		{ data: 'games' },
-	// 		{ data: 'won' },
-	// 		{ data: 'lost' },
-	// 		{ data: 'goalSpread' },
-	// 		{ data: 'goalDiff' },
-	// 		{ data: 'points' }
-	// 	],
-	// 	"fnDrawCallback" : function() {
-	// 		$(".photo-column > img").attr('height','100px');
-	// 		$(".photo-column > img").attr('width','100px');
-	// 	}
-	// });
+  //League data from server
+	var table = $('#leaguetable').DataTable({
+		"processing": true,
+		"ajax": "league",
+		"iDisplayLength": 100,
+		"order": [[ 8, 'desc' ],[7, 'desc' ] ], //sort by points, then GD
+		"aoColumnDefs": [
+			{ "sClass": "photo-column", "aTargets": [ 0 ] },
+			{ "sClass": "user-column", "aTargets": [ 1 ] },
+			{ "sClass": "company-column", "aTargets": [ 2 ] }
+		],
+	    "bLengthChange": false,
+		"columns": [
+			{ data: 'photo' },
+			{ data: 'username' },
+			{ data: 'handle' },
+			{ data: 'games' },
+			{ data: 'won' },
+			{ data: 'lost' },
+			{ data: 'goalSpread' },
+			{ data: 'goalDiff' },
+			{ data: 'points' }
+		],
+		"fnDrawCallback" : function() {
+			$(".photo-column > img").attr('height','100px');
+			$(".photo-column > img").attr('width','100px');
+		}
+	});
 
-	// setInterval( function () {
- // 		table.ajax.reload();
-	// 	console.log("Reloading league");
-	// }, 90000 );
+	setInterval( function () {
+ 		table.ajax.reload();
+		console.log("Reloading league");
+	}, 90000 );
 
-	// $('#leaguetable tbody').on( 'click', 'tr', function () {
-	// 	console.log( table.row( this ).data() );
-	// });
-  //
-	// $.fn.dataTable.ext.errMode = 'throw';
+	$('#leaguetable tbody').on( 'click', 'tr', function () {
+		console.log( table.row( this ).data() );
+	});
+
+	$.fn.dataTable.ext.errMode = 'throw';
 
 
     /*

@@ -1,3 +1,8 @@
+//User.js
+//Author: Oliver Rodriguez
+//This user object is how we keep track of the users that play
+
+//Constructor for building the User
 function User () {
   this.id = "";
   this.name = "";

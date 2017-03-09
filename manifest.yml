@@ -3,6 +3,9 @@ applications:
   memory: 256M
   instances: 1
   domain: mybluemix.net
-  name: foosbuzz3
-  host: foosbuzz3
   disk_quota: 1024M
+  buildpack: sdk-for-nodejs
+declared-services:
+  foosball-cloudantNoSQLDB:
+      label: cloudantNoSQLDB
+      plan: Lite

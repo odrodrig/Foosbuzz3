@@ -3,7 +3,8 @@
 //------------------------------------------------------------------------------
 // Foosbuzz v.3
 //
-// Authors: Oliver Rodriguez, Stefania Kaczmarczyk, Vance Morris
+// Authors: Oliver Rodriguez, Stefania Kaczmarczyk
+// License: The MIT License
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
@@ -23,10 +24,31 @@ var GameFile = require("./objects/gameFile");
 var User = require("./objects/user");
 var game = require("./util/game");
 var login = require("./routes/login");
+var db = require("./util/database");
 
 // serve the files out of ./public as our main files
 app.use(express.static(__dirname + '/public'));
 app.use(require('express-session')({ secret: 'keyboard cat', resave: true, saveUninitialized: true }));
+
+
+//------------------------------------------------------------------------------
+//2. Customize These Variables                                      ---------------
+//------------------------------------------------------------------------------
+
+var org = "5knvov";					//This is the orgID from the Watson IoT Platform
+var id = "foosbuzz3";				//This can be whatever you choose to name your application
+var auth_key = "a-5knvov-lsruwlqlx0";		//This is the API Key generated in the Watson IoT Platform dashboard
+var auth_token = "G?_Zg14oNDD5DnUVyk";  //This is the API Auth Token generated in the Watson IoT Platform dashboard
+
+var twitterKey = "RdB7v2jBMMeoPzUPoCjLzU3Es";  //This is the API Key from Twitter when you register an app
+var twitterSecret = "S3j34kIYNQZhRoFBWU4bnUr4HGaDO6880zHvJCK0sn4U8sjUzg";  //This is the API secret token from Twitter when you register an app
+
+var location = "Austin";  //Where will the foosball table be located? This is just for record keeping purposes with the leaderboard
+
+//------------------------------------------------------------------------------
+//3. Declaration of necessary variables                             ---------------
+//------------------------------------------------------------------------------
+
 
 // get the app environment from Cloud Foundry
 var appEnv = cfenv.getAppEnv();
@@ -38,29 +60,36 @@ var gf = new GameFile;
 var player1 = new User;
 var player2 = new User;
 
+player1.location = location;
+player2.location = location;
+
 var team = "";
+var league = [];
+
+var oldPlayer1 = {};
+var oldPlayer2 = {};
 
 //------------------------------------------------------------------------------
-//2. Watson IoT Connections                                         ---------------
+//4. Watson IoT setup and message handling                          ---------------
 //------------------------------------------------------------------------------
 
+//Starting the server
 server.listen(appEnv.port, function () {
 	console.log('Server starting on port ' + appEnv.port);
 });
 
-//Credentials from Watson IoT Platform
+//Gathering credentials for the Watson IoT Platform
 var appClientConfig = {
-	"org" : "5knvov",
-	"id" : "foosbuzz3",
+	"org" : org,
+	"id" : id,
 	"domain": "internetofthings.ibmcloud.com",
-	"auth-key" : "a-5knvov-lsruwlqlx0",
-	"auth-token" : "G?_Zg14oNDD5DnUVyk",
+	"auth-key" : auth_key,
+	"auth-token" : auth_token,
 	"enforce-ws" : true
 }
 
+//Creating an application client to receive device messages from Watson IoT
 var appClient = new client.IotfApplication(appClientConfig);
-// appClient.log.setLevel('trace');
-
 appClient.connect();
 
 
@@ -76,7 +105,7 @@ appClient.on("connect", function() {
 appClient.on("deviceEvent", function (deviceType, deviceId, eventType, format, payload) {
 
 	//Handle reset button
-	if(payload == 3) {
+	if(payload == 0) {
 
 		console.log("reset");
 		io.emit('reset', {reset: true});
@@ -86,8 +115,6 @@ appClient.on("deviceEvent", function (deviceType, deviceId, eventType, format, p
 		//Handle goal for team 1
 	} else if(payload == 1) {
 
-
-
 		if(isValid(gf)) {
 
 			console.log("goal team 1");
@@ -96,6 +123,10 @@ appClient.on("deviceEvent", function (deviceType, deviceId, eventType, format, p
 
 			if (gf.goalsTeam1 >= 5) {
 				io.emit("gameWon", {team: 1, game:gf});
+				player1.wins++;
+				player2.losses++;
+				oldPlayer1=player1;
+				oldPlayer2=player2;
 				endGame(gf);
 			}
 
@@ -114,8 +145,11 @@ appClient.on("deviceEvent", function (deviceType, deviceId, eventType, format, p
 
 			if (gf.goalsTeam2 >= 5) {
 				io.emit("gameWon", {team: 2, game:gf});
+				player2.wins++;
+				player1.losses++;
+				oldPlayer1=player1;
+				oldPlayer2=player2;
 				endGame(gf);
-
 			}
 
 		} else {
@@ -131,20 +165,24 @@ appClient.on("error", function(error) {
 	console.log("Error: " + error);
 })
 
+//------------------------------------------------------------------------------
+//5. Twitter authentication handling                                ---------------
+//------------------------------------------------------------------------------
 
-// Update the credentials with the information from your Twitter app
+//Configues the authentication with Twitter
 passport.use(new Strategy({
-    consumerKey: "RdB7v2jBMMeoPzUPoCjLzU3Es",
-    consumerSecret: "S3j34kIYNQZhRoFBWU4bnUr4HGaDO6880zHvJCK0sn4U8sjUzg",
-    callbackURL: "http://foosbuzz3.mybluemix.net/login/twitter/return"
+    consumerKey: twitterKey,
+    consumerSecret: twitterSecret,
+    callbackURL: appEnv.url+"/login/twitter/return"
   },
   function(token, tokenSecret, player, cb) {
 
-	// Grab the Twitter photo and strip out the minimizer
+	//Grab the Twitter photo and strip out the minimizer
     var photo = player.photos[0].value;
     photo = photo.replace("_normal", "");
 
-  	// Let Node-RED know there has been a successful login and send the profile data for further processing
+  	//Grab the necessary info from a successful Twitter log in
+		//Note: The only data taken from Twitter is the given display name, Twitter handle, and profile photo
   	var twitterData = {
 			id:player.id,
 			handle:player.username,
@@ -153,16 +191,8 @@ passport.use(new Strategy({
 			chosenTeam:team
 		};
 
-		console.log("twitterData is ");
-		console.log(twitterData);
-
+		//Send Twitter data off to be processed
 		twitterLogin(twitterData);
-
-
-		// client.post("http://yourwebsite.com/player", args, function (data, response) {
-		// 	//console.log(data);
-		// 	//console.log(response);
-		// });
 
     return cb(null, player);
 }));
@@ -171,7 +201,6 @@ passport.use(new Strategy({
 passport.serializeUser(function(user, cb) {
   cb(null, user);
 });
-
 passport.deserializeUser(function(obj, cb) {
   cb(null, obj);
 });
@@ -181,9 +210,10 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 //------------------------------------------------------------------------------
-//3. Endpoints                                                      ---------------
+//6. Endpoints                                                      ---------------
 //------------------------------------------------------------------------------
 
+//Handles requests to end game. This will be called if a user ends the game prematurely with the "End Game" button
 app.get("/end", function(req, res) {
 
 	if(isValid(gf)) {
@@ -202,7 +232,7 @@ app.get("/end", function(req, res) {
 
 })
 
-//Starts the game
+//Handles requests to start the game
 app.get("/start", function(req, res) {
 
 	if (isValid(gf)) {
@@ -217,26 +247,17 @@ app.get("/start", function(req, res) {
 
 })
 
-//Retrieves leaderboard
-app.get("/getLeague", function(req, res) {
-
-	//get users from db
-
-
-})
-
+//Handles requests for a rematch. This will be called if the user clicks on the "Rematch" button.
+//This ends the game and starts a new game but keeps the same users logged in.
 app.get("/rematch", function(req, res) {
-
-	var oldTeam1 = gf.userTeam1;
-	var oldTeam2 = gf.userTeam2;
-
-	var oldPlayer1 = player1;
-	var oldPlayer2 = player2;
 
 	game.resetGame(gf);
 
-	gf.userTeam1 = oldTeam1;
-	gf.userTeam2 = oldTeam2;
+	player1 = oldPlayer1;
+	player2 = oldPlayer2;
+
+	gf.userTeam1 = player1.name;
+	gf.userTeam2 = player2.name;
 
 	game.loggedIn.player1 = true;
 	game.loggedIn.player2 = true;
@@ -249,7 +270,7 @@ app.get("/rematch", function(req, res) {
 
 
 
-//Sends gameFile to the front-end
+//Sends gameFile to the front-end. This is called everytime the page is refreshed or a new client connects to the page.
 app.get("/currentGame", function(req, res) {
 
 		res.send({
@@ -261,41 +282,73 @@ app.get("/currentGame", function(req, res) {
 		});
 });
 
-// Manually handling login for each side with a login1 and login2
+//Handles login requests for the Team 1 log in button
 app.get('/login1', function(req, res) {
 	team = 1;
 	res.redirect('/login/twitter');
 });
 
+//Handles login requests for the Team 2 log in button
 app.get('/login2',function(req, res) {
 	team = 2;
 	res.redirect('/login/twitter');
 });
 
+//Redirects from the log in buttons. This sends the user to Twitter to authenticate with their account.
 app.get('/login/twitter',passport.authenticate('twitter', { forceLogin: true }));
 
+//Callback for successful Twitter authentication
 app.get('/login/twitter/return',
   passport.authenticate('twitter', { failureRedirect: '/', successRedirect: '/' }),
   function(req, res) {
-		console.log("in the Twitter callback");
   req.logout();
   //res.redirect('/');
 });
 
+//Handles requests to list the league of players. This is called on page load and everytime the league table refreshes.
+app.get('/league', function(req, res) {
+	var player = {};
+
+	//First see if the players database exists
+	db.isCreated(function(created) {
+
+		//If it does exist then...
+		if(created) {
+
+			//Get the list of players
+			db.getLeague(function(players) {
+
+				//After getting the array of players, then structure into a format that the front-end can understand
+				for(var x=0;x<players.length;x++) {
+					player.photo= '<img id="playerpic" src="'+players[x].doc.photo+'"/>';
+					player.username= players[x].doc.name;
+					player.handle= "@"+players[x].doc.handle;
+					player.games= players[x].doc.totalGames;
+					player.won= players[x].doc.wins;
+					player.lost= players[x].doc.losses;
+					player.goalSpread= players[x].doc.goalsFor + ":" + players[x].doc.goalsAgainst;
+					player.goalDiff= players[x].doc.goalsFor-players[x].doc.goalsAgainst;
+					player.points= (players[x].doc.wins*3)+(players[x].doc.losses*(-2));
+					league[x] = player;
+					player = {};
+				}
+				res.send({"data": league});
+			});
+
+		//If the database doesn't exist, send an empty league.
+		} else {
+			res.send({"data": ""});
+		}
+	});
+});
+
+
 //------------------------------------------------------------------------------
-//4. Function Declarations                                          ---------------
+//7. Function Declarations                                          ---------------
 //------------------------------------------------------------------------------
 
-//Handles log in data from Twitter
+//Handles log in data from Twitter and creates player objects with the Twitter data
 function twitterLogin(data) {
-
-	// if(game.loggedIn.player1) {
-	// 	res.send({error: "player1 logged in"});
-	// }
-	//
-	// if(game.loggedIn.player2) {
-	// 	res.send({error: "player2 logged in"});
-	// }
 
 	if(isValid(gf)) {
 
@@ -304,8 +357,6 @@ function twitterLogin(data) {
 		var loginTeam = data.chosenTeam;
 		var loginHandle = data.handle;
 		var loginPhoto = data.photo;
-
-		console.log("this is loginTeam "+loginTeam);
 
 		if (loginTeam == 1) {
 
@@ -316,14 +367,7 @@ function twitterLogin(data) {
 
 			gf.userTeam1 = loginName;
 			gf.IDTeam1 = loginHandle;
-
-			console.log("begin player 1");
-			console.log(player1);
-			console.log("end player 1");
-
-			//game.setUser(gf, loginName, 1)
 			game.loggedIn.player1 = true;
-			//console.log(player1);
 			io.emit("login", {player: player1, team: 1});
 
 		}
@@ -338,10 +382,7 @@ function twitterLogin(data) {
 			gf.userTeam2 = loginName;
 			gf.IDTeam2 = loginHandle;
 
-			//game.setUser(gf, loginName, 2);
 			game.loggedIn.player2 = true;
-			console.log("player 2");
-			console.log(player2);
 			io.emit("login", {player: player2, team: 2});
 
 		}
@@ -357,68 +398,47 @@ function isValid(gf) {
 
 		return true;
 
+	//If the game is not active, log all users off and start a new game
 	} else if (gf.gameActive == false) {
 
+
+		logOutUsers();
 		game.startGame(gf);
 		io.emit("gameStart");
 		return true;
 
+	//If the game is old, log off users and reset the game
 	} else if (game.isOld(gf)) {
 
 		logOutUsers();
 		game.resetGame(gf);
 		io.emit("gameStart");
 		return true;
-
 	}
-
 	return false;
-
-
 }
 
-function endGame(gf) {
-	game.endGame(gf);
-	updatePlayerStats();
-	storeGame();
-	game.clearGameFile(gf);
-	console.log(gf);
+//Function handles the various steps needed to end game and store the results in the database
+function endGame(gameFile) {
+	game.endGame(gameFile, function() {
+		db.storeUser(player1, function() {
+			db.storeUser(player2, function() {
+				db.storeGame(gameFile, function() {
+					game.clearGameFile(gameFile);
+				});
+			});
+		});
+	});
 }
 
-//Stores game file in Cloudant
-function storeGame(gameFile) {
-	console.log("Storing game file");
-}
-
-//Updates player stats for the leaderboard
-function updatePlayerStats() {
-
-	console.log("Updating player stats");
-
-}
-
-//Gets the last game ID in Cloudant
-function getLastGameID() {
-
-}
-
+//Function handles logging users out
 function logOutUsers() {
 	player1 = new User();
 	player2 = new User();
 
-	console.log(player1);
-	console.log(player2);
+	player1.location = location;
+	player2.location = location;
+
+	io.emit("reset");
+
 }
-
-
-//------------------------------------------------------------------------------
-//5. Starting Express Server                                        ---------------
-//------------------------------------------------------------------------------
-
-
-
-// // start server on the specified port and binding host
-// app.listen(appEnv.port, '0.0.0.0', function() {
-//   // print a message when the server starts listening
-//   console.log("server starting on " + appEnv.url);
-// });

@@ -1,5 +1,6 @@
 //game.js
 //Author: Oliver Rodriguez
+
 //These functions are used to interact with the GameFile
 
 //constructor
@@ -9,12 +10,12 @@ function Game () {
 	this.endGame= endGame;
 	this.resetGame= resetGame;
 	this.goal= goal;
-	//this.setUser= setUser;
 	this.goalTime= goalTime;
 	this.clearGameFile= clearGameFile;
 	this.isOld= isOld;
 }
 
+//This is to keep track of who is logged in. We don't want 2 people trying to log into the same player.
 var loggedIn = {
 	player1: false,
 	player2: false
@@ -38,7 +39,7 @@ function startGame (gameFile) {
 }
 
 //Function that ends the game. Sets the end time and gameActive to false.
-function endGame (gameFile) {
+function endGame (gameFile, callback) {
 
 	if (gameFile.gameActive) {
 
@@ -55,9 +56,11 @@ function endGame (gameFile) {
 		return false;
 
 	}
+	callback();
 }
 
-//Function that resets the game if one is currently active
+//Function that resets the game if one is currently active.
+//Will start a game if no game is active already
 function resetGame(gameFile) {
 
 	if (gameFile.gameActive) {
@@ -74,7 +77,7 @@ function resetGame(gameFile) {
 	}
 }
 
-//Handle goal events
+//Handle goal events. Updates both the gamefile and the player objects
 function goal(gameFile, userGoalFor, userGoalAgainst, team) {
 
 	if (team == 1) {
@@ -93,19 +96,7 @@ function goal(gameFile, userGoalFor, userGoalAgainst, team) {
 
 }
 
-// //Set the users in the GameFile
-// function setUser(gameFile, user, team) {
-// 
-// 	if (team == 1) {
-// 		gameFile.userTeam1 = user;
-// 	} else if (team == 2) {
-// 		gameFile.userTeam2 = user;
-// 	} else {
-// 		console.log("Invalid team selection");
-// 	}
-// }
-
-//Sets the time at which the last goal was scored
+//Sets the time at which the last goal was scored.
 function goalTime (gameFile) {
 
 	gameFile.lastBall = getTime();
@@ -136,12 +127,8 @@ function isOld (gameFile) {
 	var sMins = Math.round(getTime() / 60000);
 
 	if(cMins - lMins <= 20 || cMins - sMins <= 20) {
-		console.log("Not old");
 		return false;
-
 	} else {
-
-		console.log("is old");
 		return true;
 	}
 }
